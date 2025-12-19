@@ -99,11 +99,6 @@ Or run everything: `make demo` (build model, start compose, load features, fire 
 - Panels: QPS, p95 latency, error rate, current prod/canary versions, per-feature drift.
 - Prometheus UI: http://localhost:9090.
 
-## Example Resume Bullets
-- Designed and shipped an internal ML serving platform (registry + Triton + feature store) with automated canary/rollback; cut regression-induced outages by XX%.
-- Built Prometheus/Grafana observability (p95 latency, error rate, drift) and alert-driven rollback, reducing MTTR to YY mins.
-- Delivered GitOps pipeline via ArgoCD/Kustomize for reproducible Kubernetes deploys; reduced config drift incidents by ZZ%.
-
 ## Reproducibility
 - Python 3.10+, pinned deps (`requirements.txt` + `constraints.txt`), deterministic configs stored under `artifacts/runs/<run_id>/`.
 - CI: `.github/workflows/ci.yml` runs lint (`ruff`) and tests (`pytest`).
