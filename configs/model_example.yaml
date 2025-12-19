@@ -1,0 +1,13 @@
+model:
+  name: example_model
+  version: 1
+  framework: onnx
+  artifact_path: examples/model_repository/example_model/1/model.onnx
+  inputs:
+    - name: input
+      dims: [4]
+      dtype: TYPE_FP32
+  outputs:
+    - name: output
+      dims: [1]
+      dtype: TYPE_FP32

@@ -1,0 +1,9 @@
+groups:
+  - name: recording
+    rules:
+      - record: gateway_request_rate
+        expr: sum(rate(gateway_request_total[1m]))
+      - record: gateway_error_rate
+        expr: sum(rate(gateway_request_errors_total[1m]))
+      - record: gateway_latency_p95
+        expr: histogram_quantile(0.95, sum(rate(gateway_latency_seconds_bucket[2m])) by (le))

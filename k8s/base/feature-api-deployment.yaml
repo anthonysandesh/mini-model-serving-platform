@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: feature-api
+  namespace: mmsp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: feature-api
+  template:
+    metadata:
+      labels:
+        app: feature-api
+    spec:
+      containers:
+        - name: feature-api
+          image: mmsp-app:latest
+          command: ["uvicorn", "mmsp.features.api:app", "--host", "0.0.0.0", "--port", "8003"]
+          env:
+            - name: PLATFORM_CONFIG
+              value: /config/platform.yaml
+          ports:
+            - containerPort: 8003
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: artifacts
+              mountPath: /artifacts
+      volumes:
+        - name: config
+          configMap:
+            name: platform-config
+            items:
+              - key: platform.yaml
+                path: platform.yaml
+        - name: artifacts
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: feature-api
+  namespace: mmsp
+spec:
+  selector:
+    app: feature-api
+  ports:
+    - port: 8003
+      targetPort: 8003
+      name: http

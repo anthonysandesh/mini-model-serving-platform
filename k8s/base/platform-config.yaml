@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-config
+  namespace: mmsp
+data:
+  platform.yaml: |
+    platform:
+      name: mini-model-serving-platform
+      artifact_root: /artifacts
+      model_repository: /app/examples/model_repository
+      deployment_state: /artifacts/deployments/state.yaml
+      prometheus_url: http://prometheus.mmsp.svc.cluster.local:9090
+      triton:
+        url: http://triton.mmsp.svc.cluster.local:8000
+        grpc_url: triton.mmsp.svc.cluster.local:8001
+      gateway:
+        host: 0.0.0.0
+        port: 8000
+        canary_default_weight: 10
+      feature_store:
+        mode: lightweight
+        path: /artifacts/features/store.parquet
+        entity_id_column: entity_id
+      drift:
+        baseline_path: /app/examples/feature_data.parquet
+        window_size: 200
+        threshold: 0.3
+      alerts_config: /app/configs/alerts.yaml
+      drift_config: /app/configs/drift.yaml

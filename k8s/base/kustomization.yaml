@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: mmsp
+resources:
+  - namespace.yaml
+  - platform-config.yaml
+  - triton-deployment.yaml
+  - gateway-deployment.yaml
+  - feature-api-deployment.yaml
+  - prometheus.yaml
+  - grafana.yaml
+configMapGenerator:
+  - name: grafana-dashboards
+    files:
+      - ../../infra/grafana/dashboards/platform_dashboard.json
+generatorOptions:
+  disableNameSuffixHash: true

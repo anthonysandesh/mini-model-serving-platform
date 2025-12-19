@@ -1,0 +1,177 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: mmsp
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    rule_files:
+      - /etc/prometheus/rules.yaml
+      - /etc/prometheus/alerts.yaml
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets: ["alertmanager.mmsp.svc.cluster.local:9093"]
+    scrape_configs:
+      - job_name: gateway
+        static_configs:
+          - targets: ["gateway.mmsp.svc.cluster.local:8000"]
+      - job_name: feature-api
+        static_configs:
+          - targets: ["feature-api.mmsp.svc.cluster.local:8003"]
+      - job_name: triton
+        metrics_path: /metrics
+        static_configs:
+          - targets: ["triton.mmsp.svc.cluster.local:8002"]
+  rules.yaml: |
+    groups:
+      - name: recording
+        rules:
+          - record: gateway_request_rate
+            expr: sum(rate(gateway_request_total[1m]))
+          - record: gateway_error_rate
+            expr: sum(rate(gateway_request_errors_total[1m]))
+          - record: gateway_latency_p95
+            expr: histogram_quantile(0.95, sum(rate(gateway_latency_seconds_bucket[2m])) by (le))
+  alerts.yaml: |
+    groups:
+      - name: platform-alerts
+        rules:
+          - alert: HighErrorRate
+            expr: rate(gateway_request_errors_total[2m]) > 0.05
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              description: Gateway error rate is high
+          - alert: HighLatencyP95
+            expr: histogram_quantile(0.95, sum(rate(gateway_latency_seconds_bucket[2m])) by (le)) > 0.5
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              description: Latency exceeded
+          - alert: DriftDetected
+            expr: max_over_time(feature_drift_score[5m]) > 0.3
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              description: Feature drift detected
+          - alert: TritonDown
+            expr: up{job="triton"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              description: Triton is down
+          - alert: GatewayDown
+            expr: up{job="gateway"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              description: Gateway is down
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: mmsp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.50.1
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+          ports:
+            - containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: mmsp
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - port: 9090
+      targetPort: 9090
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: mmsp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.26.0
+          args:
+            - "--config.file=/etc/alertmanager/alertmanager.yml"
+          ports:
+            - containerPort: 9093
+          volumeMounts:
+            - name: alertmanager-config
+              mountPath: /etc/alertmanager
+      volumes:
+        - name: alertmanager-config
+          configMap:
+            name: alertmanager-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: mmsp
+data:
+  alertmanager.yml: |
+    route:
+      receiver: "default"
+    receivers:
+      - name: "default"
+        webhook_configs:
+          - url: "http://gateway.mmsp.svc.cluster.local:8000/alerts"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: mmsp
+spec:
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093
+      name: http

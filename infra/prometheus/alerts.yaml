@@ -1,0 +1,38 @@
+groups:
+  - name: platform-alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(gateway_request_errors_total[2m]) > 0.05
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Gateway error rate is high"
+      - alert: HighLatencyP95
+        expr: histogram_quantile(0.95, sum(rate(gateway_latency_seconds_bucket[2m])) by (le)) > 0.5
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Gateway p95 latency exceeded 500ms"
+      - alert: DriftDetected
+        expr: max_over_time(feature_drift_score[5m]) > 0.3
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          description: "Feature drift exceeds threshold"
+      - alert: TritonDown
+        expr: up{job="triton"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Triton server is down"
+      - alert: GatewayDown
+        expr: up{job="gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          description: "Gateway is down"

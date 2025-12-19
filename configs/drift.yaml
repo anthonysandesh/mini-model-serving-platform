@@ -1,0 +1,6 @@
+drift:
+  numeric_method: ks
+  categorical_method: psi
+  threshold: 0.3
+  baseline_path: examples/feature_data.parquet
+  window_size: 200

@@ -1,0 +1,97 @@
+version: "3.9"
+
+services:
+  triton:
+    image: nvcr.io/nvidia/tritonserver:23.10-py3
+    command: [
+      "tritonserver",
+      "--model-repository=/models",
+      "--strict-model-config=false",
+      "--strict-readiness=false",
+      "--log-verbose=0"
+    ]
+    volumes:
+      - ../examples/model_repository:/models
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+    deploy:
+      resources:
+        reservations:
+          devices: []
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: mmsp-app:latest
+    command: ["uvicorn", "mmsp.serving.gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - PLATFORM_CONFIG=/app/configs/platform.yaml
+    volumes:
+      - ..:/app
+    ports:
+      - "8080:8000"
+    depends_on:
+      - triton
+      - feature-api
+
+  feature-api:
+    image: mmsp-app:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["uvicorn", "mmsp.features.api:app", "--host", "0.0.0.0", "--port", "8003"]
+    environment:
+      - PLATFORM_CONFIG=/app/configs/platform.yaml
+    volumes:
+      - ..:/app
+    ports:
+      - "8003:8003"
+
+  registry-api:
+    image: mmsp-app:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["uvicorn", "mmsp.registry.api:app", "--host", "0.0.0.0", "--port", "8004"]
+    environment:
+      - PLATFORM_CONFIG=/app/configs/platform.yaml
+    volumes:
+      - ..:/app
+    ports:
+      - "8004:8004"
+
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    volumes:
+      - ./prometheus/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules.yaml:/etc/prometheus/rules.yaml
+      - ./prometheus/alerts.yaml:/etc/prometheus/alerts.yaml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    volumes:
+      - ./prometheus/alertmanager.yaml:/etc/alertmanager/alertmanager.yml
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    ports:
+      - "9093:9093"
+
+  grafana:
+    image: grafana/grafana:10.4.1
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus

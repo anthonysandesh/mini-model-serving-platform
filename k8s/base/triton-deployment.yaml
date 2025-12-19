@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: triton
+  namespace: mmsp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: triton
+  template:
+    metadata:
+      labels:
+        app: triton
+    spec:
+      initContainers:
+        - name: init-models
+          image: mmsp-app:latest
+          command: ["sh", "-c", "cp -r /app/examples/model_repository/* /models"]
+          volumeMounts:
+            - name: model-repo
+              mountPath: /models
+      containers:
+        - name: triton
+          image: nvcr.io/nvidia/tritonserver:23.10-py3
+          args:
+            - tritonserver
+            - --model-repository=/models
+            - --strict-readiness=false
+            - --strict-model-config=false
+          ports:
+            - containerPort: 8000
+            - containerPort: 8001
+            - containerPort: 8002
+          volumeMounts:
+            - name: model-repo
+              mountPath: /models
+      volumes:
+        - name: model-repo
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: triton
+  namespace: mmsp
+spec:
+  selector:
+    app: triton
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+    - name: grpc
+      port: 8001
+      targetPort: 8001
+    - name: metrics
+      port: 8002
+      targetPort: 8002

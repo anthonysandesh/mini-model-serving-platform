@@ -1,0 +1,10 @@
+canary:
+  error_rate_threshold: 0.05
+  latency_p95_threshold: 0.5
+  drift_threshold: 0.3
+  evaluation_window: "2m"
+  max_duration: "10m"
+  promql:
+    error_rate: "sum(rate(gateway_request_errors_total[WINDOW])) / sum(rate(gateway_request_total[WINDOW]))"
+    latency_p95: "histogram_quantile(0.95, sum(rate(gateway_latency_seconds_bucket[WINDOW])) by (le))"
+    drift: "max_over_time(feature_drift_score[WINDOW])"
